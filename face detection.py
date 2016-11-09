@@ -190,22 +190,36 @@ for i,img in enumerate(facesLst):
 redMat = []
 greenMat = []
 blueMat = []
+   
+maxRows = 0
+maxCols = 0
+
+facesCount = len(facesLst)
 
 for face in facesLst:
-    redMat.append(face[:,:,0])
-    greenMat.append(face[:,:,1])
-    blueMat.append(face[:,:,2])
+    r, c, _ = face.shape
+    if r > maxRows: maxRows = r
+    if c > maxCols: maxCols = c    
     
-# after padding
-redMatPad = []
-greenMatPad = []
-blueMatPad = []
-
-for face in redMat: 
     redMat.append(face[:,:,0])
     greenMat.append(face[:,:,1])
     blueMat.append(face[:,:,2])
+     
+# after padding
+redMatPad = [padImage(im,maxRows, maxCols) for im in redMat]
+greenMatPad = [padImage(im,maxRows, maxCols) for im in greenMat]
+blueMatPad = [padImage(im,maxRows, maxCols) for im in blueMat]
 
+# the average of each channel
+redMatMean = (sum(redMatPad)/facesCount).astype('uint8')  
+greenMatMean = (sum(greenMatPad)/facesCount).astype('uint8')  
+blueMatMean = (sum(blueMatPad)/facesCount).astype('uint8')  
+
+imMeanMat = np.dstack((redMatMean,greenMatMean,blueMatMean))
+
+cv2.imwrite('meanImg.jpg', imMeanMat)
+
+# with thanks to https://github.com/spmallick/learnopencv/blob/master/FaceAverage/faceAverage.py
 
 # cv2.imshow("Faces detected" ,imMat) # usiong this causes kernel to crash in windows
 
