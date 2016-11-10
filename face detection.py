@@ -19,7 +19,7 @@ os.chdir('C:/Users/SYARLAG1/Desktop/Face-Detection') # haar cascade location
 faceCascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml') # building the classifier for face detection.
 eyeCascade = cv2.CascadeClassifier('haarcascade_eye.xml') # building the classifier for eye detection.
 os.chdir('C:/Users/SYARLAG1/Desktop/') # image location
-imMat = cv2.imread('people.jpg')
+imMat = cv2.imread('cubs.jpg')
 
 
 grayImMat = cv2.cvtColor(imMat, cv2.COLOR_BGR2GRAY) # image needs to be in grayscale for Haar
@@ -109,7 +109,7 @@ def padImage(imageMat, maxRows, maxCols):
 faces = faceCascade.detectMultiScale(
     grayImMat,
     scaleFactor=1.1,
-    minNeighbors=20, # higher value results in a lower senstivity
+    minNeighbors=5, # higher value results in a lower senstivity
     #minSize=(30, 30),
 )
 
@@ -143,11 +143,11 @@ for iface, face in enumerate(facesLst):
     fileName = 'face'+str(iface+1)+'.jpg'
     cv2.imwrite(fileName, face)
    
-# run this to draw rectangles around orignal image
-#for x, y, w, h in realFaces:
-#    cv2.rectangle(imMat, (x, y), (x+w, y+h), (0, 255, 0), 2)
-#
-#cv2.imwrite('upeDetected.jpg', imMat)
+#run this to draw rectangles around orignal image
+for x, y, w, h in realFaces:
+    cv2.rectangle(imMat, (x, y), (x+w, y+h), (0, 255, 0), 2)
+
+cv2.imwrite('withoutEyes.jpg', imMat)
 
 # apply foreground extraction to get the foreground of an image
 #img =  np.copy(faceImgCol); rec = (0,0,img.shape[1]-1,img.shape[0]-1)
@@ -186,38 +186,54 @@ for i,img in enumerate(facesLst):
     cv2.imwrite(fileName, newImg)
     faceBGRemoved2.append(newImg)
 
-############################################### Finding the mean image #######
-redMat = []
-greenMat = []
-blueMat = []
-   
+############################################### Finding the mean image #######  
 maxRows = 0
 maxCols = 0
 
 facesCount = len(facesLst)
 
-for face in facesLst:
+for face in facesLst: # finding max dimensions
     r, c, _ = face.shape
     if r > maxRows: maxRows = r
     if c > maxCols: maxCols = c    
     
-    redMat.append(face[:,:,0])
-    greenMat.append(face[:,:,1])
-    blueMat.append(face[:,:,2])
-     
-# after padding
-redMatPad = [padImage(im,maxRows, maxCols) for im in redMat]
-greenMatPad = [padImage(im,maxRows, maxCols) for im in greenMat]
-blueMatPad = [padImage(im,maxRows, maxCols) for im in blueMat]
 
-# the average of each channel
-redMatMean = (sum(redMatPad)/facesCount).astype('uint8')  
-greenMatMean = (sum(greenMatPad)/facesCount).astype('uint8')  
-blueMatMean = (sum(blueMatPad)/facesCount).astype('uint8')  
 
-imMeanMat = np.dstack((redMatMean,greenMatMean,blueMatMean))
+def reSize(x): return cv2.resize(x, (r,c), interpolation = cv2.INTER_NEAREST)
 
-cv2.imwrite('meanImg.jpg', imMeanMat)
+facesLstResized = [reSize(face) for face in faceBGRemoved]
+
+## first method
+#facesMean = (sum(facesLstResized)).astype('uint8') 
+#cv2.imwrite('meanImg.jpg', facesMean)
+#
+## the average of each channel
+#redMat = []
+#greenMat = []
+#blueMat = []
+#
+#for face in facesLstResized:
+#    redMat.append(face[:,:,0])
+#    greenMat.append(face[:,:,1])
+#    blueMat.append(face[:,:,2])
+#
+#
+#redMatMean = (sum(redMat)/facesCount).astype('uint8')  
+#greenMatMean = (sum(greenMat)/facesCount).astype('uint8')  
+#blueMatMean = (sum(blueMat)/facesCount).astype('uint8')  
+#
+#imMeanMat = np.dstack((redMatMean,greenMatMean,blueMatMean))
+#
+#cv2.imwrite('meanImg2.jpg', imMeanMat)
+
+# Third method
+sumIm = np.zeros(shape=[r,c,3])
+for face in facesLstResized[1:]:
+    sumIm = sumIm + face
+
+facesMean = (sumIm/facesCount).astype('uint8')
+cv2.imwrite('meanImg3.jpg', facesMean)
+
 
 # with thanks to https://github.com/spmallick/learnopencv/blob/master/FaceAverage/faceAverage.py
 
