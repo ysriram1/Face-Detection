@@ -12,6 +12,8 @@ import numpy as np
 import pandas as pd
 import cv2
 from matplotlib import pyplot as plt
+import dlib
+
 
 os.chdir('C:/Users/SYARLAG1/Desktop/Face-Detection') # haar cascade location
 
@@ -50,16 +52,16 @@ def removeBackground2(img):
     MASK_ERODE_ITER = 10
     MASK_COLOR = (0,0,0) # In BGR format
     
-    #-- Read image -----------------------------------------------------------------------
+    # Read image 
 
     gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
     
-    #-- Edge detection -------------------------------------------------------------------
+    # Edge detection 
     edges = cv2.Canny(gray, CANNY_THRESH_1, CANNY_THRESH_2)
     edges = cv2.dilate(edges, None)
     edges = cv2.erode(edges, None)
 
-    #-- Find contours in edges, sort by area ---------------------------------------------
+    # Find contours in edges, sort by area 
     contour_info = []
     _, contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
     for c in contours:
@@ -71,18 +73,18 @@ def removeBackground2(img):
     contour_info = sorted(contour_info, key=lambda c: c[2], reverse=True)
     max_contour = contour_info[0]
     
-    #-- Create empty mask, draw filled polygon on it corresponding to largest contour ----
+    # Create empty mask, draw filled polygon on it corresponding to largest contour 
     # Mask is black, polygon is white
     mask = np.zeros(edges.shape)
     cv2.fillConvexPoly(mask, max_contour[0], (255))
     
-    #-- Smooth mask, then blur it --------------------------------------------------------
+    # Smooth mask, then blur it 
     mask = cv2.dilate(mask, None, iterations=MASK_DILATE_ITER)
     mask = cv2.erode(mask, None, iterations=MASK_ERODE_ITER)
     mask = cv2.GaussianBlur(mask, (BLUR, BLUR), 0)
     mask_stack = np.dstack([mask]*3)    # Create 3-channel alpha mask
     
-    #-- Blend masked img into MASK_COLOR background --------------------------------------
+    # Blend masked img into MASK_COLOR background 
     mask_stack  = mask_stack.astype('float32') / 255.0          # Use float matrices, 
     img         = img.astype('float32') / 255.0                 #  for easy blending
     
@@ -105,7 +107,7 @@ def padImage(imageMat, maxRows, maxCols):
 
 
 
-# Detect faces in the image
+####################################### Detect and Extract faces in the image #
 faces = faceCascade.detectMultiScale(
     grayImMat,
     scaleFactor=1.1,
@@ -186,6 +188,24 @@ for i,img in enumerate(facesLst):
     cv2.imwrite(fileName, newImg)
     faceBGRemoved2.append(newImg)
 
+##################################### Align the faces ########################
+## Training a predictor, with thanks to http://dlib.net/train_shape_predictor.py.html
+options = dlib.shape_predictor_training_options()
+options.oversampling_amount = 300
+options.nu = 0.05
+options.tree_depth = 2
+options.be_verbose = True
+
+os.chdir('C:/Users/SYARLAG1/Desktop/Face-Detection')
+# this may take a while ... uses the images in the folder. DONT run if predictor.dat already exists
+dlib.train_shape_predictor('testing_with_face_landmarks.xml', "predictor.dat", options)
+
+def faceAlign(im):   
+    detector = dlib.get_frontal_face_detector()
+    predictor = dlib.shape_predictor("predictor.dat")
+    imNew = detector(im,1)
+    return np.matrix([[p.x, p.y] for p in predictor(im, imNew[0]).parts()])
+
 ############################################### Finding the mean image #######  
 maxRows = 0
 maxCols = 0
@@ -197,7 +217,6 @@ for face in facesLst: # finding max dimensions
     if r > maxRows: maxRows = r
     if c > maxCols: maxCols = c    
     
-
 
 def reSize(x): return cv2.resize(x, (r,c), interpolation = cv2.INTER_NEAREST)
 
